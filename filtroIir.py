@@ -13,12 +13,15 @@ Características desta implementação
 - Quatro aproximações: Butterworth, Chebyshev I, Chebyshev II e Elíptica.
 - Comparação entre filtragem de FASE ZERO (sosfiltfilt) e CAUSAL (sosfilt),
   esta última realizável em tempo real.
-- Busca em grade ampla (tipo x ordem x corte x método) com verificação de
-  estabilidade (polos dentro do círculo unitário).
+- Busca em grade ampla (tipo x ordem x corte x ondulação/atenuação x método)
+  com verificação de estabilidade (polos dentro do círculo unitário).
 - Métricas: RMSE, melhoria de SNR (dB) e custo computacional (mediana do
   pipeline projeto+filtragem, robusta a jitter do SO).
 - Análise no domínio da frequência (resposta freqz e espectro FFT) e no plano Z
   (diagrama de polos e zeros).
+- Caracterização do sinal: detecção do instante de chaveamento das cargas não
+  lineares (degrau da envoltória RMS) e análise harmônica/THD na janela
+  pós-chaveamento (9 ciclos -> cada harmônica sobre um bin exato da FFT).
 - Execução "zero-config": `python filtroIir.py` roda tudo e salva as figuras.
 
 Uso
@@ -157,58 +160,133 @@ def medir_custo_computacional(sinal_ruido, fs, f_corte, ordem, tipo,
 
 
 # --------------------------------------------------------------------------- #
+#  Caracterização do sinal: chaveamento e conteúdo harmônico
+# --------------------------------------------------------------------------- #
+def detectar_instante_chaveamento(sinal, fs):
+    """
+    Localiza o instante de inserção das cargas não lineares.
+
+    A entrada das cargas não lineares eleva abruptamente a envoltória da
+    corrente. Avaliando o valor RMS ciclo a ciclo da fundamental (janela de
+    ``fs/60`` amostras), a maior variação entre ciclos consecutivos marca o
+    chaveamento. Retorna ``(indice, tempo_s)``.
+    """
+    ciclo = int(round(fs / 60.0))
+    n_blocos = len(sinal) // ciclo
+    rms = np.array([
+        np.sqrt(np.mean(sinal[i * ciclo:(i + 1) * ciclo] ** 2))
+        for i in range(n_blocos)
+    ])
+    bloco = int(np.argmax(np.abs(np.diff(rms)))) + 1
+    idx = bloco * ciclo
+    return idx, idx / fs
+
+
+def analise_harmonica(sinal, fs, n_ciclos=9, hmax=13):
+    """
+    Conteúdo harmônico e THD em regime permanente pós-chaveamento.
+
+    Mede os últimos ``n_ciclos`` ciclos completos da fundamental do registro
+    (região estacionária após o chaveamento, evitando o transitório de
+    inserção). Como a janela cobre um número inteiro de períodos de 60 Hz, cada
+    harmônica recai sobre um bin exato da FFT, eliminando o espalhamento
+    espectral; as amplitudes de pico saem de ``2|X[k]|/N``. Retorna
+    ``(DataFrame, thd_pct)``, com ``THD = sqrt(sum_{h>=2} A_h^2) / A_1``.
+    """
+    ciclo = int(round(fs / 60.0))
+    N = n_ciclos * ciclo
+    inicio = max(0, len(sinal) - N)                  # últimos n_ciclos completos
+    janela = sinal[inicio:inicio + N]
+    X = np.abs(np.fft.rfft(janela)) * 2.0 / N        # amplitude de pico por bin
+    A1 = X[n_ciclos]                                 # bin exato da fundamental
+    linhas, soma_h2 = [], 0.0
+    for h in range(1, hmax + 1):
+        bin_h = h * n_ciclos
+        if bin_h >= len(X):
+            break
+        Ah = float(X[bin_h])
+        if h >= 2:
+            soma_h2 += Ah ** 2
+        linhas.append({'harmonica': h, 'freq_hz': h * 60,
+                       'amplitude': Ah, 'pct_fundamental': 100.0 * Ah / A1})
+    thd = 100.0 * np.sqrt(soma_h2) / A1
+    return pd.DataFrame(linhas), float(thd)
+
+
+# --------------------------------------------------------------------------- #
 #  Buscas de parâmetros
 # --------------------------------------------------------------------------- #
 def busca_em_grade(sinal_sem_ruido, sinal_com_ruido, fs,
                    ordens=range(1, 9),
                    frequencias_corte=np.arange(300, 3301, 100),
                    tipos=('butter', 'cheby1', 'cheby2', 'ellip'),
-                   metodos=(True, False)):
+                   metodos=(True, False),
+                   rps=(0.1, 0.5, 1.0),
+                   rss=(30.0, 40.0, 50.0, 60.0)):
     """
-    Varre tipo x ordem x corte x método (fase zero / causal) e devolve um
-    DataFrame com o RMSE de cada configuração estável encontrada.
+    Varre tipo x ordem x corte x ondulação/atenuação x método (fase zero /
+    causal) e devolve um DataFrame com o RMSE de cada configuração estável.
+
+    A ondulação de passagem ``rp`` só é varrida nas aproximações que a possuem
+    (Chebyshev I e elíptica) e a atenuação de rejeição ``rs`` apenas onde ela é
+    parâmetro de projeto (Chebyshev II e elíptica); para as demais o valor é
+    irrelevante e mantém-se fixo, evitando configurações redundantes.
+
+    Obs.: o "janelamento" pedido no enunciado é técnica de filtros FIR e não se
+    aplica a IIR; o par (rp, rs) varrido aqui é o grau de liberdade análogo que
+    molda o gabarito da aproximação.
     """
     linhas = []
     for tipo in tipos:
+        lista_rp = rps if tipo in ('cheby1', 'ellip') else (0.5,)
+        lista_rs = rss if tipo in ('cheby2', 'ellip') else (40.0,)
         for ordem in ordens:
             for fc in frequencias_corte:
                 for fase_zero in metodos:
-                    try:
-                        filtrado, sos = aplicar_filtro_iir(
-                            sinal_com_ruido, fs, fc, ordem, tipo,
-                            fase_zero=fase_zero)
-                        if not eh_estavel(sos):
-                            continue                      # descarta instáveis
-                        rmse = calcular_rmse(sinal_sem_ruido, filtrado)
-                        if not np.isfinite(rmse):
-                            continue
-                        linhas.append({
-                            'tipo': tipo, 'ordem': ordem, 'fc': int(fc),
-                            'fase_zero': fase_zero, 'rmse': rmse,
-                        })
-                    except Exception:
-                        continue
+                    for rp in lista_rp:
+                        for rs in lista_rs:
+                            try:
+                                filtrado, sos = aplicar_filtro_iir(
+                                    sinal_com_ruido, fs, fc, ordem, tipo,
+                                    rp=rp, rs=rs, fase_zero=fase_zero)
+                                if not eh_estavel(sos):
+                                    continue              # descarta instáveis
+                                rmse = calcular_rmse(sinal_sem_ruido, filtrado)
+                                if not np.isfinite(rmse):
+                                    continue
+                                linhas.append({
+                                    'tipo': tipo, 'ordem': ordem, 'fc': int(fc),
+                                    'fase_zero': fase_zero, 'rp': rp, 'rs': rs,
+                                    'rmse': rmse,
+                                })
+                            except Exception:
+                                continue
     return pd.DataFrame(linhas)
 
 
 def analise_custo_vs_ordem(sinal_sem_ruido, sinal_com_ruido, fs,
                            tipo='butter', fc=1100.0, ordens=range(1, 9),
-                           fase_zero=True):
+                           fase_zero=True, rp=0.5, rs=40.0):
     """
-    Varre a ordem com tipo/corte fixos, reportando RMSE e custo computacional.
-    Subsidia diretamente a escolha da ordem considerando o custo.
+    Varre a ordem com tipo/corte fixos, reportando RMSE, custo computacional e
+    o módulo do polo dominante. Subsidia a escolha da ordem considerando o custo.
     """
     linhas = []
     for ordem in ordens:
         try:
             filtrado, sos = aplicar_filtro_iir(
-                sinal_com_ruido, fs, fc, ordem, tipo, fase_zero=fase_zero)
+                sinal_com_ruido, fs, fc, ordem, tipo, rp=rp, rs=rs,
+                fase_zero=fase_zero)
             if not eh_estavel(sos):
                 continue
             rmse = calcular_rmse(sinal_sem_ruido, filtrado)
+            _, polos, _ = signal.sos2zpk(sos)
+            pmax = float(np.max(np.abs(polos)))
             custo = medir_custo_computacional(
-                sinal_com_ruido, fs, fc, ordem, tipo, fase_zero=fase_zero)
-            linhas.append({'ordem': ordem, 'rmse': rmse, 'tempo_ms': custo})
+                sinal_com_ruido, fs, fc, ordem, tipo, rp=rp, rs=rs,
+                fase_zero=fase_zero)
+            linhas.append({'ordem': ordem, 'rmse': rmse, 'tempo_ms': custo,
+                           'pmax': pmax})
         except Exception:
             continue
     return pd.DataFrame(linhas)
@@ -217,13 +295,42 @@ def analise_custo_vs_ordem(sinal_sem_ruido, sinal_com_ruido, fs,
 # --------------------------------------------------------------------------- #
 #  Figuras
 # --------------------------------------------------------------------------- #
+def plot_sinal_bruto(sem_ruido, com_ruido, fs, idx_sw,
+                     arquivo='sinal_bruto_b9.pdf'):
+    """
+    Sinal de corrente completo (todas as amostras): ruidoso versus referência,
+    com o instante de inserção das cargas não lineares destacado. Salvo em PDF
+    vetorial. Subsidia a seção de caracterização/análise do sinal.
+    """
+    n = len(sem_ruido)
+    t_ms = np.arange(n) / fs * 1000.0
+    fig, ax = plt.subplots(figsize=(11, 4.2))
+    ax.plot(t_ms, com_ruido, color='#C0392B', lw=0.7, alpha=0.55,
+            label='Com ruído')
+    ax.plot(t_ms, sem_ruido, color='black', lw=1.2,
+            label='Referência (sem ruído)')
+    ax.axvline(idx_sw / fs * 1000.0, color='#2C3E50', lw=1.3, linestyle='--',
+               label='Inserção de cargas não lineares')
+    ax.set_title("Sinal de Corrente Medido",
+                 fontsize=12, fontweight='bold')
+    ax.set_xlabel("Tempo (ms)")
+    ax.set_ylabel("Corrente (A)")
+    ax.set_xlim(0, t_ms[-1])
+    ax.legend(loc='upper left')
+    ax.grid(True)
+    fig.tight_layout()
+    fig.savefig(arquivo, bbox_inches='tight')
+    plt.close(fig)
+    print(f"  figura salva: {arquivo}")
+
+
 def plot_comparativo_tempo(sem_ruido, com_ruido, melhores_por_tipo,
-                           melhor_tipo, n_amostras=400,
-                           arquivo='resultado_filtros_iir_b9.png'):
+                           melhor_tipo, n_amostras=768,
+                           arquivo='resultado_filtros_iir_b9.pdf'):
     """Composição 3x2: um subplot por aproximação + um comparativo geral."""
     fig = plt.figure(figsize=(16, 14))
-    fig.suptitle("Filtragem IIR — Melhor Configuração por Aproximação (Fase Zero)\n"
-                 "(Grupo B9)", fontsize=14, fontweight='bold', y=0.98)
+    fig.suptitle("Filtragem IIR — Melhor Configuração por Aproximação (Fase Zero)",
+                 fontsize=14, fontweight='bold', y=0.98)
     gs = gridspec.GridSpec(3, 2, figure=fig, hspace=0.55, wspace=0.30)
     posicoes = [(0, 0), (0, 1), (1, 0), (1, 1)]
 
@@ -267,8 +374,8 @@ def plot_comparativo_tempo(sem_ruido, com_ruido, melhores_por_tipo,
     print(f"  figura salva: {arquivo}")
 
 
-def plot_melhor_global(sem_ruido, com_ruido, info, tipo, n_amostras=400,
-                       arquivo='melhor_filtro_iir_b9.png'):
+def plot_melhor_global(sem_ruido, com_ruido, info, tipo, n_amostras=768,
+                       arquivo='melhor_filtro_iir_b9.pdf'):
     """Destaque do melhor filtro global no domínio do tempo."""
     fig, ax = plt.subplots(figsize=(12, 5))
     ax.plot(com_ruido[:n_amostras], alpha=0.4, color='gray', lw=1, label='Com ruído')
@@ -278,7 +385,7 @@ def plot_melhor_global(sem_ruido, com_ruido, info, tipo, n_amostras=400,
                    f"fc = {info['fc']} Hz | RMSE = {info['rmse']:.4f}"))
     ax.set_title(f"★ Melhor Filtro IIR Global — {NOMES[tipo]} "
                  f"(Ordem {info['ordem']}, fc = {info['fc']} Hz)\n"
-                 f"RMSE = {info['rmse']:.4f} | ΔSNR = {info['snr']:.1f} dB | Grupo B9",
+                 f"RMSE = {info['rmse']:.4f} | ΔSNR = {info['snr']:.1f} dB",
                  fontsize=12, fontweight='bold')
     ax.set_xlabel("Amostras")
     ax.set_ylabel("Corrente (A)")
@@ -291,7 +398,7 @@ def plot_melhor_global(sem_ruido, com_ruido, info, tipo, n_amostras=400,
 
 
 def plot_resposta_frequencia(melhores_por_tipo, fs,
-                             arquivo='resposta_frequencia_b9.png'):
+                             arquivo='resposta_frequencia_b9.pdf'):
     """Resposta em magnitude (freqz) dos melhores filtros de cada tipo."""
     fig, ax = plt.subplots(figsize=(11, 5))
     for tipo in ['butter', 'cheby1', 'cheby2', 'ellip']:
@@ -300,7 +407,7 @@ def plot_resposta_frequencia(melhores_por_tipo, fs,
         ax.plot(w, 20 * np.log10(np.abs(h) + 1e-12), color=CORES[tipo], lw=1.6,
                 label=f"{NOMES[tipo]} (Ordem {info['ordem']}, fc={info['fc']} Hz)")
         ax.axvline(info['fc'], color=CORES[tipo], lw=0.8, alpha=0.3, linestyle=':')
-    ax.set_title("Resposta em Frequência dos Melhores Filtros (Grupo B9)",
+    ax.set_title("Resposta em Frequência dos Melhores Filtros",
                  fontsize=12, fontweight='bold')
     ax.set_xlabel("Frequência (Hz)")
     ax.set_ylabel("Ganho (dB)")
@@ -315,7 +422,7 @@ def plot_resposta_frequencia(melhores_por_tipo, fs,
 
 
 def plot_espectro_fft(sem_ruido, com_ruido, info_global, fs,
-                      arquivo='espectro_fft_b9.png'):
+                      arquivo='espectro_fft_b9.pdf'):
     """Espectro de magnitude (FFT) antes e depois da filtragem."""
     n = len(sem_ruido)
     freqs = np.fft.rfftfreq(n, d=1 / fs)
@@ -331,7 +438,7 @@ def plot_espectro_fft(sem_ruido, com_ruido, info_global, fs,
                 linestyle='--', label=f"Filtrado ({NOMES[info_global['tipo']]})")
     ax.axvline(info_global['fc'], color='#00A86B', lw=1.0, linestyle=':',
                label=f"fc = {info_global['fc']} Hz")
-    ax.set_title("Espectro de Frequência — Antes e Depois da Filtragem (Grupo B9)",
+    ax.set_title("Espectro de Frequência — Antes e Depois da Filtragem",
                  fontsize=12, fontweight='bold')
     ax.set_xlabel("Frequência (Hz)")
     ax.set_ylabel("Magnitude (norm.)")
@@ -344,15 +451,24 @@ def plot_espectro_fft(sem_ruido, com_ruido, info_global, fs,
     print(f"  figura salva: {arquivo}")
 
 
-def plot_custo_vs_ordem(df_custo, tipo, fc, arquivo='custo_vs_ordem_b9.png'):
+def plot_custo_vs_ordem(df_custo, tipo, fc, arquivo='custo_vs_ordem_b9.pdf'):
     """Eixo duplo: RMSE e custo computacional em função da ordem."""
     fig, ax1 = plt.subplots(figsize=(9, 5))
     ax1.plot(df_custo['ordem'], df_custo['rmse'], marker='o', color='#004B87',
              lw=1.6, label='RMSE')
+    # Escala log: a ordem 1 é um outlier (RMSE ~ 18) que, em escala linear,
+    # achata as ordens 3-8 e esconde o mínimo na ordem 3 e a subida posterior.
+    ax1.set_yscale('log')
+    ordem_min = int(df_custo.loc[df_custo['rmse'].idxmin(), 'ordem'])
+    rmse_min = float(df_custo['rmse'].min())
+    ax1.annotate(f"mínimo (ordem {ordem_min})", xy=(ordem_min, rmse_min),
+                 xytext=(ordem_min + 1.2, rmse_min * 2.2), fontsize=8,
+                 color='#004B87',
+                 arrowprops=dict(arrowstyle='->', color='#004B87', lw=1.0))
     ax1.set_xlabel("Ordem do Filtro")
-    ax1.set_ylabel("RMSE", color='#004B87')
+    ax1.set_ylabel("RMSE (escala log)", color='#004B87')
     ax1.tick_params(axis='y', labelcolor='#004B87')
-    ax1.grid(True)
+    ax1.grid(True, which='both')
     ax2 = ax1.twinx()
     ax2.plot(df_custo['ordem'], df_custo['tempo_ms'], marker='s', color='#FF4B4B',
              linestyle='--', lw=1.6, label='Custo computacional')
@@ -367,9 +483,13 @@ def plot_custo_vs_ordem(df_custo, tipo, fc, arquivo='custo_vs_ordem_b9.png'):
     print(f"  figura salva: {arquivo}")
 
 
-def plot_polos_zeros(info_global, arquivo='polos_zeros_b9.png'):
+def plot_polos_zeros(info_global, arquivo='polos_zeros_b9.pdf'):
     """Diagrama de polos e zeros no plano Z (estabilidade do melhor filtro)."""
     zeros, polos, _ = signal.sos2zpk(info_global['sos'])
+    # O empacotamento SOS de uma ordem ímpar insere um par polo/zero trivial na
+    # origem (z=0) que se cancela; remove-se para exibir os polos/zeros reais.
+    zeros = zeros[np.abs(zeros) > 1e-8]
+    polos = polos[np.abs(polos) > 1e-8]
     fig, ax = plt.subplots(figsize=(6.5, 6.5))
     teta = np.linspace(0, 2 * np.pi, 512)
     ax.plot(np.cos(teta), np.sin(teta), color='gray', lw=1.0, linestyle='--',
@@ -397,8 +517,8 @@ def plot_polos_zeros(info_global, arquivo='polos_zeros_b9.png'):
     print(f"  figura salva: {arquivo}")
 
 
-def plot_causal_vs_fase_zero(sem_ruido, com_ruido, fs, df_busca, n_amostras=400,
-                             arquivo='causal_vs_fasezero_b9.png'):
+def plot_causal_vs_fase_zero(sem_ruido, com_ruido, fs, df_busca, n_amostras=768,
+                             arquivo='causal_vs_fasezero_b9.pdf'):
     """
     Compara o melhor filtro de fase zero com o melhor filtro causal (realizável
     em tempo real). Evidencia o atraso de fase introduzido pela filtragem causal.
@@ -408,10 +528,12 @@ def plot_causal_vs_fase_zero(sem_ruido, com_ruido, fs, df_busca, n_amostras=400,
 
     filt_fz, _ = aplicar_filtro_iir(com_ruido, fs, melhor_fz['fc'],
                                     int(melhor_fz['ordem']), melhor_fz['tipo'],
-                                    fase_zero=True)
+                                    rp=float(melhor_fz['rp']),
+                                    rs=float(melhor_fz['rs']), fase_zero=True)
     filt_ca, _ = aplicar_filtro_iir(com_ruido, fs, melhor_ca['fc'],
                                     int(melhor_ca['ordem']), melhor_ca['tipo'],
-                                    fase_zero=False)
+                                    rp=float(melhor_ca['rp']),
+                                    rs=float(melhor_ca['rs']), fase_zero=False)
 
     fig, ax = plt.subplots(figsize=(12, 5))
     ax.plot(com_ruido[:n_amostras], alpha=0.3, color='gray', lw=1, label='Com ruído')
@@ -422,7 +544,7 @@ def plot_causal_vs_fase_zero(sem_ruido, com_ruido, fs, df_busca, n_amostras=400,
     ax.plot(filt_ca[:n_amostras], color='#E69F00', lw=1.8, linestyle='-.',
             label=(f"Causal: {NOMES[melhor_ca['tipo']]} O{int(melhor_ca['ordem'])} "
                    f"fc={melhor_ca['fc']} Hz | RMSE={melhor_ca['rmse']:.4f}"))
-    ax.set_title("Filtragem Causal (tempo real) vs. Fase Zero (offline) — Grupo B9",
+    ax.set_title("Filtragem Causal (tempo real) vs. Fase Zero (offline)",
                  fontsize=12, fontweight='bold')
     ax.set_xlabel("Amostras")
     ax.set_ylabel("Corrente (A)")
@@ -474,6 +596,17 @@ def main():
     rmse_inicial = calcular_rmse(sem_ruido, com_ruido)
     print(f"RMSE inicial (sem filtragem): {rmse_inicial:.4f}\n")
 
+    # ---- Caracterização do sinal (chaveamento e harmônicos) ------------- #
+    idx_sw, t_sw = detectar_instante_chaveamento(sem_ruido, fs)
+    df_harm, thd = analise_harmonica(sem_ruido, fs)
+    print(f"Instante de chaveamento das cargas não lineares: "
+          f"amostra {idx_sw} (t = {t_sw * 1000:.1f} ms)")
+    print(f"Conteúdo harmônico pós-chaveamento (THD = {thd:.1f}%):")
+    print(df_harm[df_harm['pct_fundamental'] >= 1.0].to_string(
+        index=False, formatters={'amplitude': '{:.2f}'.format,
+                                  'pct_fundamental': '{:.2f}'.format}))
+    print()
+
     print("Iniciando busca em grade (tipo x ordem x corte x método)...")
     df = busca_em_grade(sem_ruido, com_ruido, fs)
     print(f"Configurações estáveis avaliadas: {len(df)}\n")
@@ -483,13 +616,16 @@ def main():
     for tipo in ['butter', 'cheby1', 'cheby2', 'ellip']:
         sub = df[(df['tipo'] == tipo) & (df['fase_zero'])].sort_values('rmse')
         melhor = sub.iloc[0]
+        rp_b, rs_b = float(melhor['rp']), float(melhor['rs'])
         filtrado, sos = aplicar_filtro_iir(
-            com_ruido, fs, melhor['fc'], int(melhor['ordem']), tipo, fase_zero=True)
+            com_ruido, fs, melhor['fc'], int(melhor['ordem']), tipo,
+            rp=rp_b, rs=rs_b, fase_zero=True)
         custo = medir_custo_computacional(
-            com_ruido, fs, melhor['fc'], int(melhor['ordem']), tipo, fase_zero=True)
+            com_ruido, fs, melhor['fc'], int(melhor['ordem']), tipo,
+            rp=rp_b, rs=rs_b, fase_zero=True)
         melhores_por_tipo[tipo] = {
             'tipo': tipo, 'ordem': int(melhor['ordem']), 'fc': int(melhor['fc']),
-            'rmse': float(melhor['rmse']),
+            'rp': rp_b, 'rs': rs_b, 'rmse': float(melhor['rmse']),
             'snr': melhoria_snr_db(sem_ruido, com_ruido, filtrado),
             'tempo_ms': custo, 'sinal': filtrado, 'sos': sos,
         }
@@ -505,6 +641,7 @@ def main():
     for tipo in ['butter', 'cheby1', 'cheby2', 'ellip']:
         i = melhores_por_tipo[tipo]
         print(f"[{NOMES[tipo]:14s}] Ordem {i['ordem']} | fc {i['fc']:5d} Hz | "
+              f"rp {i['rp']:.1f} dB | rs {i['rs']:.0f} dB | "
               f"RMSE {i['rmse']:.4f} | ganho SNR {i['snr']:5.1f} dB | {i['tempo_ms']:.3f} ms")
 
     print("-" * 64)
@@ -526,6 +663,7 @@ def main():
 
     # ---- Figuras -------------------------------------------------------- #
     print("\nGerando figuras...")
+    plot_sinal_bruto(sem_ruido, com_ruido, fs, idx_sw)
     plot_comparativo_tempo(sem_ruido, com_ruido, melhores_por_tipo, melhor_tipo)
     plot_melhor_global(sem_ruido, com_ruido, info_global, melhor_tipo)
     plot_resposta_frequencia(melhores_por_tipo, fs)
@@ -534,13 +672,22 @@ def main():
     plot_causal_vs_fase_zero(sem_ruido, com_ruido, fs, df)
 
     df_custo = analise_custo_vs_ordem(
-        sem_ruido, com_ruido, fs, tipo=melhor_tipo, fc=info_global['fc'])
+        sem_ruido, com_ruido, fs, tipo=melhor_tipo, fc=info_global['fc'],
+        rp=info_global['rp'], rs=info_global['rs'])
     if not df_custo.empty:
+        print("\n  CUSTO COMPUTACIONAL vs. ORDEM "
+              f"({NOMES[melhor_tipo]}, fc={info_global['fc']} Hz, "
+              f"rs={info_global['rs']:.0f} dB, fase zero):")
+        print(df_custo.to_string(index=False, formatters={
+            'rmse': '{:.3f}'.format, 'tempo_ms': '{:.2f}'.format,
+            'pmax': '{:.3f}'.format}))
         plot_custo_vs_ordem(df_custo, melhor_tipo, info_global['fc'])
 
-    # Exporta a tabela completa de resultados para reuso/relatório.
+    # Exporta as tabelas para reuso/relatório.
     df.sort_values('rmse').to_csv('resultados_busca_b9.csv', index=False)
     print("  tabela salva: resultados_busca_b9.csv")
+    df_harm.to_csv('harmonicos_b9.csv', index=False)
+    print("  tabela salva: harmonicos_b9.csv")
     print("\nConcluído.")
 
 
