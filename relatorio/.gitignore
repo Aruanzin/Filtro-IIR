@@ -1,0 +1,11 @@
+# Artefatos de compilação LaTeX (não versionar)
+ProjetoPDS.pdf
+*.aux
+*.log
+*.out
+*.bbl
+*.blg
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
