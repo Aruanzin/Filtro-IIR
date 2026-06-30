@@ -9,5 +9,6 @@
   "latex-workshop.latex.recipes": [
     { "name": "Tectonic", "tools": ["tectonic"] }
   ],
-  "latex-workshop.latex.recipe.default": "first"
+  "latex-workshop.latex.recipe.default": "first",
+  "latex-workshop.latex.autoBuild.run": "onSave"
 }
