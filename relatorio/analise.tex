@@ -1,0 +1,72 @@
+\section{Análise dos Sinais}
+
+Apresente o(s) sinal(is) que seu grupo está utilizando. Utilize figuras com boa resolução (evitar .png -- busque usar formatos vetorizados).
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{sinal_bruto_b9.pdf}
+\caption{Sinal de corrente medido (registro ruidoso e referência sem ruído), com
+o instante de inserção das cargas não lineares destacado.}
+\label{fig:sinal}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{resultado_filtros_iir_b9.pdf}
+\caption{Comparação no domínio do tempo da melhor configuração de cada
+aproximação (fase zero).}
+\label{fig:tempo}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\columnwidth]{polos_zeros_b9.pdf}
+\caption{Diagrama de polos e zeros do filtro Chebyshev~II de ordem~3.}
+\label{fig:polos}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{resposta_frequencia_b9.pdf}
+\caption{Resposta em frequência (magnitude) dos melhores filtros.}
+\label{fig:resposta}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{espectro_fft_b9.pdf}
+\caption{Espectro de magnitude (FFT) antes e depois da filtragem.}
+\label{fig:espectro}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{custo_vs_ordem_b9.pdf}
+\caption{RMSE e custo computacional em função da ordem do filtro.}
+\label{fig:custo}
+\end{figure}
+
+Explique as parametrizações testadas para o algoritmo de processamento digital de sinais utilizado (se houver).
+
+Demonstre, de preferência graficamente, as saídas do algoritmo de processamento digital de sinais utilizado. Ou traga valores tabelados. A Tabela~\ref{tab:results} exemplifica a tabulação de dados para apresentação de resultados.
+
+\begin{table}[!h]
+\renewcommand{\arraystretch}{1.2}
+\caption{Dados tabulados.}
+\label{tab:results}
+\centering
+\begin{tabular}{|c|ccccc|}
+\hline
+\multirow{2}{*}{\textbf{Zone}} & \multicolumn{5}{c|}{\textbf{MRE}} \\
+ & \textbf{6-pulse} & \textbf{12-pulse} & \textbf{SFC} & \textbf{DC motor} & \textbf{TCR} \\
+\hline
+\textbf{1} & 15.2\% & 14.4\% & 32.2\% & 5.9\% & 35.2\% \\
+\textbf{2} & 10.3\% & 12.0\%  & 7.1\% & 5.3\%  & 19.7\% \\
+\textbf{3} & 0.6\% & 2.3\%  & 2.2\% & 1.3\%  & 0.5\% \\
+\hline
+\textbf{General} & 6.9\%  & 8.2\%  & 9.4\% & 3.7\%  & 14\% \\
+\hline
+\end{tabular}
+\end{table}
+
+Apresente e discuta os resultados finais de seu projeto. Pode usar gráficos e/ou tabelas. Entretanto, precisam ser devidamente explicados.
