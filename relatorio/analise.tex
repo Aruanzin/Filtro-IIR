@@ -1,7 +1,29 @@
 % !TEX root = ProjetoPDS.tex
 \section{Análise dos Sinais}
 
-Apresente o(s) sinal(is) que seu grupo está utilizando. Utilize figuras com boa resolução (evitar .png -- busque usar formatos vetorizados).
+\subsection{Caracterização do Sinal}
+O sinal possui \num{1537} amostras (\SI{0.20}{\second} a
+\SI{7680}{\hertz}) e está reproduzido na Fig.~\ref{fig:sinal}, que mostra o
+registro ruidoso, a referência sem ruído e o instante de inserção das cargas não
+lineares. A análise espectral (Fig.~\ref{fig:espectro}) revela a
+componente fundamental em \SI{60}{\hertz} e conteúdo harmônico, com destaque para
+a $5^{\text{a}}$ harmônica próxima de \SI{300}{\hertz}, coerente com a presença de
+cargas não lineares. O instante de inserção das cargas não lineares foi
+localizado na amostra~384 ($t \approx \SI{50}{\milli\second}$) por um detector de
+degrau da envoltória: calcula-se o valor eficaz (RMS) ciclo a ciclo da fundamental
+(\num{128} amostras) e toma-se a maior variação entre ciclos consecutivos. Nessa
+fronteira o RMS salta de \SI{1.57}{\ampere}, sob cargas lineares, para
+\SI{23.1}{\ampere} após o chaveamento, confirmando a transição; a filtragem
+proposta preserva esse transitório.
+
+A Fig.~\ref{fig:tempo} mostra os dois regimes de operação. Antes do
+chaveamento, com cargas lineares, a corrente é quase senoidal e de baixa
+amplitude (poucos ampères). Depois da entrada das cargas não lineares,
+a amplitude cresce de repente (fundamental de \SI{32.3}{\ampere}) e a forma de
+onda deixa de ser senoidal, achatada pelos harmônicos de ordem
+$6k\pm1$. O desafio da filtragem é duplo: tirar o ruído de medição,
+de banda larga, sem suavizar a distorção harmônica do segundo regime,
+que é justamente a informação útil para a análise de qualidade de energia.
 
 \begin{figure}[H]
 \centering
@@ -18,6 +40,33 @@ o instante de inserção das cargas não lineares destacado.}
 aproximação (fase zero).}
 \label{fig:tempo}
 \end{figure}
+
+Nos dois regimes, o sinal filtrado acompanha a referência: o
+ruído de alta frequência é removido tanto no trecho senoidal de baixa amplitude
+quanto na forma de onda distorcida depois do chaveamento, sem suavizar demais os
+picos e vales dos harmônicos. As quatro aproximações dão curvas quase
+coincidentes nessa escala.
+
+\subsection{Funções de Transferência e Estabilidade}
+As duas melhores configurações de fase zero, ambas de ordem~3, possuem as funções
+de transferência discretas
+\begin{equation}
+H_{\text{But}}(z) = \frac{0{,}0443 + 0{,}1328\,z^{-1} + 0{,}1328\,z^{-2} + 0{,}0443\,z^{-3}}
+{1 - 1{,}2420\,z^{-1} + 0{,}7486\,z^{-2} - 0{,}1524\,z^{-3}},
+\label{eq:hbut}
+\end{equation}
+\begin{equation}
+H_{\text{Ch2}}(z) = \frac{0{,}0483 + 0{,}1141\,z^{-1} + 0{,}1141\,z^{-2} + 0{,}0483\,z^{-3}}
+{1 - 1{,}3104\,z^{-1} + 0{,}8008\,z^{-2} - 0{,}1654\,z^{-3}}.
+\label{eq:hch2}
+\end{equation}
+O filtro Butterworth tem polos em $0{,}447 \pm j0{,}487$ e $0{,}349$, com módulo
+máximo $|p|_{\max} = 0{,}661$; o Chebyshev~II, em $0{,}475 \pm j0{,}482$ e
+$0{,}361$, com $|p|_{\max} = 0{,}677$. Como todos os polos têm módulo inferior à
+unidade, ambos são estáveis no sentido BIBO (entrada limitada, saída limitada). Os três zeros do Butterworth
+coincidem em $z = -1$, ao passo que o Chebyshev~II posiciona um par de zeros sobre
+o círculo unitário ($-0{,}681 \pm j0{,}733$), criando os \emph{notches} de
+transmissão característicos dessa aproximação, como ilustra a Fig.~\ref{fig:polos}.
 
 \begin{figure}[H]
 \centering
