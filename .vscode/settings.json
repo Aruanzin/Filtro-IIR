@@ -1,0 +1,13 @@
+{
+  "latex-workshop.latex.tools": [
+    {
+      "name": "tectonic",
+      "command": "tectonic",
+      "args": ["--synctex", "--keep-logs", "%DOC_EXT%"]
+    }
+  ],
+  "latex-workshop.latex.recipes": [
+    { "name": "Tectonic", "tools": ["tectonic"] }
+  ],
+  "latex-workshop.latex.recipe.default": "first"
+}
