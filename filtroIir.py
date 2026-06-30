@@ -337,7 +337,7 @@ def plot_comparativo_tempo(sem_ruido, com_ruido, melhores_por_tipo,
     for idx, tipo in enumerate(['butter', 'cheby1', 'cheby2', 'ellip']):
         info = melhores_por_tipo[tipo]
         ax = fig.add_subplot(gs[posicoes[idx]])
-        ax.plot(com_ruido[:n_amostras], alpha=0.35, color='gray', lw=1,
+        ax.plot(com_ruido[:n_amostras], alpha=0.55, color='#6E6E6E', lw=1,
                 label='Com ruído')
         ax.plot(sem_ruido[:n_amostras], color='black', lw=1.5, label='Original')
         ax.plot(info['sinal'][:n_amostras], color=CORES[tipo], lw=2,
@@ -351,7 +351,7 @@ def plot_comparativo_tempo(sem_ruido, com_ruido, melhores_por_tipo,
         ax.grid(True)
 
     ax_comp = fig.add_subplot(gs[2, :])
-    ax_comp.plot(com_ruido[:n_amostras], alpha=0.25, color='gray', lw=1,
+    ax_comp.plot(com_ruido[:n_amostras], alpha=0.55, color='#6E6E6E', lw=1,
                  label='Com ruído')
     ax_comp.plot(sem_ruido[:n_amostras], color='black', lw=2,
                  label='Original (referência)')
