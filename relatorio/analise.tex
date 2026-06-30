@@ -29,21 +29,28 @@ o ruído de medição, de banda larga, sem suavizar a distorção harmônica do 
 regime, que é justamente a informação útil para a análise de qualidade de energia.
 
 \subsection{Filtragem no Domínio do Tempo}
-\begin{figure}[H]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{resultado_filtros_iir_b9.pdf}
-\caption{Comparação no domínio do tempo da melhor configuração de cada
-aproximação (fase zero).}
+\includegraphics[width=0.92\textwidth]{resultado_filtros_iir_b9.pdf}
+\caption{Filtragem no domínio do tempo: a melhor configuração de cada aproximação
+sobre os sinais de referência e ruidoso (painéis superiores) e o erro residual
+(filtrado menos referência) das quatro aproximações, sobreposto e ampliado no
+transitório do chaveamento (painel inferior), fase zero.}
 \label{fig:tempo}
-\end{figure}
+\end{figure*}
 
-A Fig.~\ref{fig:tempo} compara, no domínio do tempo, o melhor filtro de cada
-aproximação com os sinais de referência e ruidoso, destacando (com $\star$) a
-configuração global vencedora, o Chebyshev~II. Nos dois regimes, o sinal filtrado
-acompanha a referência: o ruído de alta frequência é removido tanto no trecho
-senoidal de baixa amplitude quanto na forma de onda distorcida depois do
-chaveamento, sem suavizar demais os picos e vales dos harmônicos. As quatro
-aproximações dão curvas quase coincidentes nessa escala.
+A Fig.~\ref{fig:tempo} traz, nos quatro painéis superiores, o melhor filtro de cada
+aproximação sobre os sinais de referência e ruidoso; na escala cheia as três curvas
+ficam quase coincidentes --- efeito da filtragem eficaz e do ruído pequeno frente ao
+sinal ---, evidenciando que o ruído é removido e a forma de onda preservada nos dois
+regimes. O painel inferior amplia o \emph{erro residual} (filtrado menos referência)
+das quatro aproximações na janela do chaveamento (amostras~300--460) --- a grandeza
+minimizada pelo RMSE ---, justamente onde elas mais se distinguem: os filtros de
+corte mais baixo (Chebyshev~I e elíptico, fc~$=700$~Hz) apresentam o maior
+sobressinal e oscilação após o degrau --- passa-banda estreita implica resposta ao
+impulso mais longa ---, enquanto o Chebyshev~II ($\star$, fc~$=2700$~Hz) reage de
+forma mais contida, o que se reflete no seu menor RMSE. Fora desse transitório o erro
+é pequeno (décimos de ampère) e semelhante nas quatro.
 
 \subsection{Funções de Transferência e Estabilidade}
 As duas melhores configurações de fase zero, ambas de ordem~3, possuem as funções
@@ -74,21 +81,23 @@ Fig.~\ref{fig:polos} exibe o diagrama do Chebyshev~II: os três polos ficam bem 
 interior do círculo unitário, enquanto um par de zeros se posiciona sobre o
 círculo ($-0{,}681 \pm j0{,}733$), criando os \emph{notches} de transmissão
 característicos dessa aproximação; os três zeros do Butterworth, em contraste,
-coincidem em $z = -1$.
+coincidem em $z = -1$. A Fig.~\ref{fig:resposta} apresenta a resposta em
+frequência (magnitude) dos quatro filtros, e a Fig.~\ref{fig:espectro}, o efeito
+da filtragem sobre o espectro do sinal.
 
-\begin{figure}[H]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{resposta_frequencia_b9.pdf}
+\includegraphics[width=0.85\textwidth]{resposta_frequencia_b9.pdf}
 \caption{Resposta em frequência (magnitude) dos melhores filtros.}
 \label{fig:resposta}
-\end{figure}
+\end{figure*}
 
-\begin{figure}[H]
+\begin{figure*}[t]
 \centering
-\includegraphics[width=\columnwidth]{espectro_fft_b9.pdf}
+\includegraphics[width=0.85\textwidth]{espectro_fft_b9.pdf}
 \caption{Espectro de magnitude (FFT) antes e depois da filtragem.}
 \label{fig:espectro}
-\end{figure}
+\end{figure*}
 
 \begin{figure}[H]
 \centering

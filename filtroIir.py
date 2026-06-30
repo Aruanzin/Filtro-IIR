@@ -325,49 +325,65 @@ def plot_sinal_bruto(sem_ruido, com_ruido, fs, idx_sw,
 
 
 def plot_comparativo_tempo(sem_ruido, com_ruido, melhores_por_tipo,
-                           melhor_tipo, n_amostras=768,
+                           melhor_tipo, idx_sw=384, n_amostras=768,
                            arquivo='resultado_filtros_iir_b9.pdf'):
-    """Composição 3x2: um subplot por aproximação + um comparativo geral."""
-    fig = plt.figure(figsize=(16, 14))
+    """Painel por aproximação (registro inteiro) + erro residual das 4 sobrepostas.
+
+    Os quatro painéis superiores mostram, para cada aproximação, com ruído /
+    original / filtrado no registro inteiro. O painel inferior sobrepõe o erro
+    residual (filtrado − referência) das quatro aproximações, cada uma em sua
+    cor, para comparação direta da grandeza minimizada pelo RMSE.
+    """
+    tipos = ['butter', 'cheby1', 'cheby2', 'ellip']
+
+    fig = plt.figure(figsize=(16, 13))
     fig.suptitle("Filtragem IIR — Melhor Configuração por Aproximação (Fase Zero)",
-                 fontsize=14, fontweight='bold', y=0.98)
-    gs = gridspec.GridSpec(3, 2, figure=fig, hspace=0.55, wspace=0.30)
+                 fontsize=14, fontweight='bold', y=0.99)
+    gs = gridspec.GridSpec(3, 2, figure=fig, hspace=0.5, wspace=0.22)
     posicoes = [(0, 0), (0, 1), (1, 0), (1, 1)]
 
-    for idx, tipo in enumerate(['butter', 'cheby1', 'cheby2', 'ellip']):
+    for idx, tipo in enumerate(tipos):
         info = melhores_por_tipo[tipo]
         ax = fig.add_subplot(gs[posicoes[idx]])
-        ax.plot(com_ruido[:n_amostras], alpha=0.55, color='#6E6E6E', lw=1,
+        ax.plot(com_ruido[:n_amostras], alpha=0.55, color='#6E6E6E', lw=1.0,
                 label='Com ruído')
         ax.plot(sem_ruido[:n_amostras], color='black', lw=1.5, label='Original')
-        ax.plot(info['sinal'][:n_amostras], color=CORES[tipo], lw=2,
+        ax.plot(info['sinal'][:n_amostras], color=CORES[tipo], lw=2.0,
                 linestyle='--', label=f"Filtrado ({NOMES[tipo]})")
-        ax.set_title(f"{NOMES[tipo]} — Ordem {info['ordem']} | fc = {info['fc']} Hz\n"
+        estrela = " ★" if tipo == melhor_tipo else ""
+        ax.set_title(f"{NOMES[tipo]}{estrela} — Ordem {info['ordem']} | fc = {info['fc']} Hz\n"
                      f"RMSE = {info['rmse']:.4f} | ΔSNR = {info['snr']:.1f} dB",
                      fontsize=10)
         ax.set_xlabel("Amostras")
         ax.set_ylabel("Corrente (A)")
-        ax.legend(loc='upper right')
-        ax.grid(True)
+        ax.legend(loc='upper right', fontsize=8)
+        ax.grid(True, alpha=0.4)
 
-    ax_comp = fig.add_subplot(gs[2, :])
-    ax_comp.plot(com_ruido[:n_amostras], alpha=0.55, color='#6E6E6E', lw=1,
-                 label='Com ruído')
-    ax_comp.plot(sem_ruido[:n_amostras], color='black', lw=2,
-                 label='Original (referência)')
-    for tipo in ['butter', 'cheby1', 'cheby2', 'ellip']:
+    # Painel inferior: erro residual das 4 aproximações sobreposto, ampliado na
+    # janela do chaveamento (onde as curvas mais se distinguem; fora dela o erro
+    # é pequeno e quase idêntico). Zoom em x preserva o pico (não corta em y).
+    rw0, rw1 = 300, 460
+    xr = np.arange(rw0, rw1)
+    ax_res = fig.add_subplot(gs[2, :])
+    for tipo in tipos:
         info = melhores_por_tipo[tipo]
-        estrela = " ★ MELHOR GLOBAL" if tipo == melhor_tipo else ""
-        ax_comp.plot(info['sinal'][:n_amostras], color=CORES[tipo], lw=1.8,
-                     linestyle='--',
-                     label=(f"{NOMES[tipo]} | Ordem {info['ordem']} | "
-                            f"fc={info['fc']} Hz | RMSE={info['rmse']:.4f}{estrela}"))
-    ax_comp.set_title("Comparativo — Todos os Tipos (melhor configuração de cada um)",
-                      fontsize=11, fontweight='bold')
-    ax_comp.set_xlabel("Amostras")
-    ax_comp.set_ylabel("Corrente (A)")
-    ax_comp.legend(loc='upper right')
-    ax_comp.grid(True)
+        residuo = info['sinal'][:n_amostras] - sem_ruido[:n_amostras]
+        destaque = tipo == melhor_tipo
+        ax_res.plot(xr, residuo[rw0:rw1], color=CORES[tipo],
+                    lw=2.2 if destaque else 1.4, alpha=0.95 if destaque else 0.8,
+                    label=f"{NOMES[tipo]}{' ★' if destaque else ''} "
+                          f"(RMSE={info['rmse']:.4f})")
+    ax_res.axhline(0, color='black', lw=0.6)
+    ax_res.axvline(idx_sw, color='0.4', ls=':', lw=1.2,
+                   label=f"Chaveamento (amostra {idx_sw})")
+    ax_res.set_xlim(rw0, rw1)
+    ax_res.set_title(f"Erro residual (filtrado − referência) — zoom no transitório "
+                     f"do chaveamento (amostras {rw0}–{rw1})",
+                     fontsize=11, fontweight='bold')
+    ax_res.set_xlabel("Amostras")
+    ax_res.set_ylabel("Erro (A)")
+    ax_res.legend(loc='upper right', ncol=3, fontsize=9)
+    ax_res.grid(True, alpha=0.4)
 
     fig.savefig(arquivo, dpi=150, bbox_inches='tight')
     plt.close(fig)
@@ -664,7 +680,8 @@ def main():
     # ---- Figuras -------------------------------------------------------- #
     print("\nGerando figuras...")
     plot_sinal_bruto(sem_ruido, com_ruido, fs, idx_sw)
-    plot_comparativo_tempo(sem_ruido, com_ruido, melhores_por_tipo, melhor_tipo)
+    plot_comparativo_tempo(sem_ruido, com_ruido, melhores_por_tipo, melhor_tipo,
+                           idx_sw=idx_sw)
     plot_melhor_global(sem_ruido, com_ruido, info_global, melhor_tipo)
     plot_resposta_frequencia(melhores_por_tipo, fs)
     plot_espectro_fft(sem_ruido, com_ruido, info_global, fs)
