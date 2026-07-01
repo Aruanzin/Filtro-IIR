@@ -81,30 +81,47 @@ Fig.~\ref{fig:polos} exibe o diagrama do Chebyshev~II: os três polos ficam bem 
 interior do círculo unitário, enquanto um par de zeros se posiciona sobre o
 círculo ($-0{,}681 \pm j0{,}733$), criando os \emph{notches} de transmissão
 característicos dessa aproximação; os três zeros do Butterworth, em contraste,
-coincidem em $z = -1$. A Fig.~\ref{fig:resposta} apresenta a resposta em
-frequência (magnitude) dos quatro filtros, e a Fig.~\ref{fig:espectro}, o efeito
-da filtragem sobre o espectro do sinal.
+coincidem em $z = -1$.
 
-\begin{figure*}[t]
+\subsection{Resposta em Frequência e Espectro}
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{resposta_frequencia_b9.pdf}
+\includegraphics[width=\columnwidth]{resposta_frequencia_b9.pdf}
 \caption{Resposta em frequência (magnitude) dos melhores filtros.}
 \label{fig:resposta}
-\end{figure*}
+\end{figure}
 
-\begin{figure*}[t]
+A Fig.~\ref{fig:resposta} apresenta as respostas em magnitude dos melhores
+filtros. O Chebyshev~II exibe o característico \emph{notch} de transmissão na
+banda de rejeição, atenuando seletivamente o ruído de alta frequência enquanto
+preserva a planura na banda de passagem.
+
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.85\textwidth]{espectro_fft_b9.pdf}
+\includegraphics[width=\columnwidth]{espectro_fft_b9.pdf}
 \caption{Espectro de magnitude (FFT) antes e depois da filtragem.}
 \label{fig:espectro}
-\end{figure*}
+\end{figure}
 
+A Fig.~\ref{fig:espectro} confirma, no domínio da frequência, a supressão das
+componentes de alta frequência e a preservação da fundamental e das harmônicas de
+baixa ordem.
+
+\subsection{Custo Computacional versus Ordem}
 \begin{figure}[H]
 \centering
 \includegraphics[width=\columnwidth]{custo_vs_ordem_b9.pdf}
 \caption{RMSE e custo computacional em função da ordem do filtro.}
 \label{fig:custo}
 \end{figure}
+
+A Fig.~\ref{fig:custo} relaciona ordem, RMSE e custo computacional, fixando o tipo
+Chebyshev~II, $f_c=\SI{2700}{\hertz}$ e $r_s=\SI{50}{\decibel}$. A ordem~1 é
+insuficiente (RMSE alto). O RMSE atinge o mínimo na \textbf{ordem~3} e
+\emph{aumenta} para ordens maiores, enquanto o custo computacional cresce de forma
+quase monotônica. Ou seja, a ordem~3 é o melhor ponto: ordens maiores só elevam o
+custo sem ganho de qualidade, que é exatamente o compromisso que o enunciado pede
+para considerar.
 
 Explique as parametrizações testadas para o algoritmo de processamento digital de sinais utilizado (se houver).
 
