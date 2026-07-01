@@ -52,6 +52,25 @@ impulso mais longa ---, enquanto o Chebyshev~II ($\star$, fc~$=2700$~Hz) reage d
 forma mais contida, o que se reflete no seu menor RMSE. Fora desse transitório o erro
 é pequeno (décimos de ampère) e semelhante nas quatro.
 
+\begin{table}[H]
+\renewcommand{\arraystretch}{1.3}
+\caption{Melhor configuração de cada aproximação (fase zero, ordem~3). O
+Chebyshev~II ($\star$) atinge o menor RMSE.}
+\label{tab:results}
+\centering
+\begin{tabular}{lccccc}
+\hline
+\textbf{Aproximação} & \textbf{$f_c$ (Hz)} & \textbf{$r_p$ (dB)} &
+\textbf{$r_s$ (dB)} & \textbf{RMSE} & \textbf{$\Delta$SNR (dB)} \\
+\hline
+Butterworth              & 1100 & ---     & ---  & 0{,}3210 & 5{,}38 \\
+Chebyshev~I              & 700  & 0{,}1   & ---  & 0{,}3260 & 5{,}24 \\
+\textbf{Chebyshev~II}~$\star$ & 2700 & ---     & 50   & \textbf{0{,}3206} & \textbf{5{,}39} \\
+Elíptico                 & 700  & 0{,}1   & 60   & 0{,}3262 & 5{,}24 \\
+\hline
+\end{tabular}
+\end{table}
+
 \subsection{Funções de Transferência e Estabilidade}
 As duas melhores configurações de fase zero, ambas de ordem~3, possuem as funções
 de transferência discretas
@@ -126,24 +145,5 @@ para considerar.
 Explique as parametrizações testadas para o algoritmo de processamento digital de sinais utilizado (se houver).
 
 Demonstre, de preferência graficamente, as saídas do algoritmo de processamento digital de sinais utilizado. Ou traga valores tabelados. A Tabela~\ref{tab:results} exemplifica a tabulação de dados para apresentação de resultados.
-
-\begin{table}[!t]
-\renewcommand{\arraystretch}{1.3}
-\caption{Melhor configuração de cada aproximação (fase zero, ordem~3). O
-Chebyshev~II ($\star$) atinge o menor RMSE.}
-\label{tab:results}
-\centering
-\begin{tabular}{lccccc}
-\hline
-\textbf{Aproximação} & \textbf{$f_c$ (Hz)} & \textbf{$r_p$ (dB)} &
-\textbf{$r_s$ (dB)} & \textbf{RMSE} & \textbf{$\Delta$SNR (dB)} \\
-\hline
-Butterworth              & 1100 & ---     & ---  & 0{,}3210 & 5{,}38 \\
-Chebyshev~I              & 700  & 0{,}1   & ---  & 0{,}3260 & 5{,}24 \\
-\textbf{Chebyshev~II}~$\star$ & 2700 & ---     & 50   & \textbf{0{,}3206} & \textbf{5{,}39} \\
-Elíptico                 & 700  & 0{,}1   & 60   & 0{,}3262 & 5{,}24 \\
-\hline
-\end{tabular}
-\end{table}
 
 Apresente e discuta os resultados finais de seu projeto. Pode usar gráficos e/ou tabelas. Entretanto, precisam ser devidamente explicados.
