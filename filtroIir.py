@@ -551,20 +551,17 @@ def plot_causal_vs_fase_zero(sem_ruido, com_ruido, fs, df_busca, n_amostras=768,
                                     rp=float(melhor_ca['rp']),
                                     rs=float(melhor_ca['rs']), fase_zero=False)
 
-    fig, ax = plt.subplots(figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(7.6, 4.6))
     ax.plot(com_ruido[:n_amostras], alpha=0.3, color='gray', lw=1, label='Com ruído')
-    ax.plot(sem_ruido[:n_amostras], color='black', lw=2, label='Original (referência)')
-    ax.plot(filt_fz[:n_amostras], color='#004B87', lw=1.8, linestyle='--',
-            label=(f"Fase zero: {NOMES[melhor_fz['tipo']]} O{int(melhor_fz['ordem'])} "
-                   f"fc={melhor_fz['fc']} Hz | RMSE={melhor_fz['rmse']:.4f}"))
-    ax.plot(filt_ca[:n_amostras], color='#E69F00', lw=1.8, linestyle='-.',
-            label=(f"Causal: {NOMES[melhor_ca['tipo']]} O{int(melhor_ca['ordem'])} "
-                   f"fc={melhor_ca['fc']} Hz | RMSE={melhor_ca['rmse']:.4f}"))
+    ax.plot(sem_ruido[:n_amostras], color='black', lw=1.8, label='Referência')
+    ax.plot(filt_fz[:n_amostras], color='#004B87', lw=1.8, linestyle='--', label='Fase zero')
+    ax.plot(filt_ca[:n_amostras], color='#E69F00', lw=1.8, linestyle='-.', label='Causal')
     ax.set_title("Filtragem Causal (tempo real) vs. Fase Zero (offline)",
                  fontsize=12, fontweight='bold')
-    ax.set_xlabel("Amostras")
-    ax.set_ylabel("Corrente (A)")
-    ax.legend(loc='upper right')
+    ax.set_xlabel("Amostras", fontsize=12)
+    ax.set_ylabel("Corrente (A)", fontsize=12)
+    ax.tick_params(labelsize=10)
+    ax.legend(loc='upper right', fontsize=11, ncol=2)
     ax.grid(True)
     fig.tight_layout()
     fig.savefig(arquivo, dpi=150, bbox_inches='tight')

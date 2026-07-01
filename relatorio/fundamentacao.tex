@@ -1,21 +1,44 @@
 % !TEX root = ProjetoPDS.tex
 \section{Fundamentação Teórica}
+\label{sec:fund}
 
-No presente trabalho, valeu-se de filtros IIR para resolução de uma situação problema que exigia a minimização de ruído em um sinal dado, com frequência fundamental de 60hz. Para tanto, valemo-nos de diferentes modelos (a saber, Butterworth, Chebyshev tipo I e II, e Elíptico), alterando os parâmetros julgados relevantes de modo a minimizar o erro frente ao sinal original, ponderando pelo impacto computacional que a solução traria.
+No presente trabalho, valeu-se de filtros IIR para resolução de uma situação problema que exigia a minimização de ruído em um sinal dado, com frequência fundamental de \SI{60}{\hertz}. Para tanto, valemo-nos de diferentes modelos (a saber, Butterworth, Chebyshev tipo I e II, e Elíptico), alterando os parâmetros julgados relevantes de modo a minimizar o erro frente ao sinal original, ponderando pelo impacto computacional que a solução traria.
 
 Em relação aos algoritmos avaliados, temos também particularidades teóricas em seu funcionamento, conforme explicitado em \cite{oppenheim2009} que podem explicar a adequação (ou não) à situação presente. Em comum, todos são filtros digitais passa baixa, atuando de modo a retirar as frequências indesejadas introduzidas no ruído. No entanto, há divergências de funcionamento, particularmente em relação à velocidade e suavidade de transição nas diferentes bandas do sinal, e consequentemente no ripple acarretado.
 
-Para o filtro Butterworth, temos que sua resposta em magnitude é monotônica, tanto na banda de aceitação quanto de corte, ou seja, não introduz ripple, sendo uma opção de filtro bem suave. Conforme aumentamos a ordem, no entanto, é observado um comportamento mais brusco de transição
+Para o filtro Butterworth, temos que sua resposta em magnitude é monotônica, tanto na banda de aceitação quanto de corte, ou seja, não introduz ripple, sendo uma opção de filtro bem suave. Conforme aumentamos a ordem, no entanto, é observado um comportamento mais brusco de transição.
 
-Já os filtros de Chebyshev aceitam a existência de ripple, mas apenas em uma das bandas, seja na de aceitação , mantendo a banda de rejeição monotônica (tipo I); Ou na de rejeição, mantendo a banda de aceitação plana (tipo II). Apesar de indesejado, a introdução do ripple pode ser útil visto que tem como consequência uma transição consideravelmente mais rápida que filtros monotônicos, como Butterworth
+Já os filtros de Chebyshev aceitam a existência de ripple, mas apenas em uma das bandas, seja na de aceitação , mantendo a banda de rejeição monotônica (tipo I); Ou na de rejeição, mantendo a banda de aceitação plana (tipo II). Apesar de indesejado, a introdução do ripple pode ser útil visto que tem como consequência uma transição consideravelmente mais rápida que filtros monotônicos, como Butterworth.
 
 Por fim, o filtro Elíptico permite existência de ripple em todo seu espectro, tanto na banda de aceitação quanto de rejeição. Isso torna sua transição bem agressiva, possuindo a faixa de transição mais rápida de todos, mas ocasionando em um erro distribuído maior.
 
 
-\begin{figure}[h]
+\begin{figure}[H]
 \centering
-\includegraphics[width=0.45\textwidth]{Fluxograma.png}
-\caption{Fluxograma do projeto e aplicação do filtro IIR}
+\resizebox{\columnwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=7mm and 12mm,
+  box/.style={rectangle, rounded corners, draw=black!45, fill=black!8,
+              align=center, text width=3.1cm, minimum height=9mm, font=\small},
+  arr/.style={-{Latex[length=2.2mm]}, thick, black!55},
+  darr/.style={-{Latex[length=2.2mm]}, thick, black!55, dashed}
+]
+\node[box] (p1) {Definição dos parâmetros do filtro};
+\node[box, below=of p1] (p2) {Cálculo de polos e zeros analógicos};
+\node[box, below=of p2] (p3) {Transformação bilinear};
+\node[box, below=of p3] (p4) {Cálculo da função de transferência};
+\node[box, right=of p4] (apl) {Aplicação sobre o sinal};
+\node[box, above=of apl] (rin) {Recebimento do sinal com ruído};
+\node[box, right=of apl] (out) {Sinal filtrado};
+\draw[arr] (p1) -- (p2);
+\draw[arr] (p2) -- (p3);
+\draw[arr] (p3) -- (p4);
+\draw[arr] (p4) -- (apl);
+\draw[darr] (rin) -- (apl);
+\draw[darr] (apl) -- (out);
+\end{tikzpicture}%
+}
+\caption{Fluxograma do projeto e da aplicação do filtro IIR.}
 \label{fig:flowchart}
 \end{figure}
 

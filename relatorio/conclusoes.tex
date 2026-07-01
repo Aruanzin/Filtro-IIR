@@ -3,9 +3,10 @@
 
 A comparação entre as quatro aproximações deixou claro que o tipo de filtro
 pesa tanto quanto a ordem ou a frequência de corte na qualidade do
-resultado. Chebyshev~I e Elíptico convergiram, na busca em grade, para
-ordem~1 com $f_c = \SI{600}{\hertz}$ -- um decaimento espectral lento demais
-para separar o ruído sem comprometer o restante do sinal. Já o Butterworth
+resultado. Chebyshev~I e Elíptico convergiram, na busca em grade, para o menor
+corte (ordem~3 com $f_c = \SI{700}{\hertz}$), o que estreita a banda de passagem
+e alonga a resposta ao impulso, gerando maior sobressinal no transitório do
+chaveamento e, com isso, um RMSE ligeiramente superior. Já o Butterworth
 de ordem~3 melhorou esse cenário, mas, com $f_c = \SI{1100}{\hertz}$, acabou
 atenuando parte das harmônicas de ordem $6k\pm1$ geradas pelas cargas não
 lineares, o que se refletiu no RMSE.

@@ -18,6 +18,7 @@ O trabalho do **Grupo B9** consiste em projetar e aplicar **Filtros IIR** ao sin
 - **Busca em grade ampla** — varre tipo × ordem (1–8) × frequência de corte (300–3300 Hz) × método, com **verificação de estabilidade** (polos dentro do círculo unitário).
 - **Métricas** — RMSE, **melhoria de SNR (dB)** e **custo computacional** (mediana do pipeline projeto+filtragem, robusta a *jitter* do SO).
 - **Análise em frequência** — resposta em magnitude (`sosfreqz`) e **espectro FFT** antes/depois.
+- **Caracterização do sinal** — detecção do **instante de chaveamento** das cargas não lineares (degrau da envoltória RMS ciclo a ciclo) e **análise harmônica/THD** na janela pós-chaveamento (9 ciclos → cada harmônica sobre um bin exato da FFT).
 - **Análise no plano Z** — **diagrama de polos e zeros** do melhor filtro (estabilidade).
 - **Custo vs. ordem** — gráfico de eixo duplo (RMSE × tempo) para escolher a ordem com consciência de custo.
 - **Execução *zero-config*** — `python filtroIir.py` roda tudo e salva todas as figuras; *fallback* sintético se os CSVs não forem encontrados.
@@ -42,6 +43,7 @@ Desenvolvido em **Python 3** com `numpy`, `scipy` (módulo `scipy.signal`), `pan
 ├── custo_vs_ordem_b9.png          # RMSE × custo computacional vs. ordem
 ├── causal_vs_fasezero_b9.png      # Filtragem causal vs. fase zero
 ├── resultados_busca_b9.csv        # Tabela completa da busca (gerada)
+├── harmonicos_b9.csv              # Conteúdo harmônico pós-chaveamento (gerada)
 └── README.md
 ```
 
@@ -56,4 +58,4 @@ python filtroIir.py --fs 7680  # sobrescreve a frequência de amostragem
 
 ## 📈 Resultado
 
-Para o `sinal_9`, o melhor filtro global é um **Chebyshev II de ordem 3** com $f_c = 2300\text{ Hz}$, atingindo **RMSE ≈ 0,32** (redução de ~46 % em relação ao sinal ruidoso). A análise de custo × ordem mostra que o RMSE estabiliza a partir da ordem 3, de modo que ordens maiores apenas elevam o custo sem ganho de qualidade.
+Para o `sinal_9`, o melhor filtro global é um **Chebyshev II de ordem 3** com $f_c = 2700\text{ Hz}$ e $r_s = 50\text{ dB}$, atingindo **RMSE ≈ 0,32** (redução de ~46 % em relação ao sinal ruidoso). O mínimo é raso: a configuração de valores "redondos" $f_c = 2300\text{ Hz}$, $r_s = 40\text{ dB}$ fica a apenas 0,0001 do ótimo, de modo que a escolha exata de $f_c$ é pouco crítica. A análise de custo × ordem mostra que o RMSE estabiliza a partir da ordem 3, de modo que ordens maiores apenas elevam o custo sem ganho de qualidade.

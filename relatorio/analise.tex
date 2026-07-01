@@ -28,6 +28,15 @@ achatada pelos harmônicos de ordem $6k\pm1$. O desafio da filtragem é duplo: t
 o ruído de medição, de banda larga, sem suavizar a distorção harmônica do segundo
 regime, que é justamente a informação útil para a análise de qualidade de energia.
 
+As cargas não lineares descritas (retificadores, inversores e drives de motor
+CC) comportam-se como conversores de seis pulsos e injetam os harmônicos
+característicos de ordem $6k\pm1$: as componentes de 5ª, 7ª, 11ª e 13ª ordem,
+situadas em \SI{300}{\hertz}, \SI{420}{\hertz}, \SI{660}{\hertz} e
+\SI{780}{\hertz} para a fundamental de \SI{60}{\hertz}. Todas se concentram na
+região de baixa frequência do espectro, bem abaixo da faixa dominada pelo ruído
+de medição. É essa separação clara, em frequência, entre a informação útil e o
+ruído que viabiliza o uso de um filtro passa-baixas para o problema.
+
 \subsection{Filtragem no Domínio do Tempo}
 \begin{figure*}[t]
 \centering
@@ -41,14 +50,14 @@ transitório do chaveamento (painel inferior), fase zero.}
 
 A Fig.~\ref{fig:tempo} traz, nos quatro painéis superiores, o melhor filtro de cada
 aproximação sobre os sinais de referência e ruidoso; na escala cheia as três curvas
-ficam quase coincidentes --- efeito da filtragem eficaz e do ruído pequeno frente ao
-sinal ---, evidenciando que o ruído é removido e a forma de onda preservada nos dois
+ficam quase coincidentes (efeito da filtragem eficaz e do ruído pequeno frente ao
+sinal), evidenciando que o ruído é removido e a forma de onda preservada nos dois
 regimes. O painel inferior amplia o \emph{erro residual} (filtrado menos referência)
-das quatro aproximações na janela do chaveamento (amostras~300--460) --- a grandeza
-minimizada pelo RMSE ---, justamente onde elas mais se distinguem: os filtros de
+das quatro aproximações na janela do chaveamento (amostras~300--460), que é a
+grandeza minimizada pelo RMSE, justamente onde elas mais se distinguem: os filtros de
 corte mais baixo (Chebyshev~I e elíptico, fc~$=700$~Hz) apresentam o maior
-sobressinal e oscilação após o degrau --- passa-banda estreita implica resposta ao
-impulso mais longa ---, enquanto o Chebyshev~II ($\star$, fc~$=2700$~Hz) reage de
+sobressinal e oscilação após o degrau (passa-banda estreita implica resposta ao
+impulso mais longa), enquanto o Chebyshev~II ($\star$, fc~$=2700$~Hz) reage de
 forma mais contida, o que se reflete no seu menor RMSE. Fora desse transitório o erro
 é pequeno (décimos de ampère) e semelhante nas quatro.
 
@@ -71,6 +80,35 @@ Elíptico                 & 700  & 0{,}1   & 60   & 0{,}3262 & 5{,}24 \\
 \end{tabular}
 \end{table}
 
+\subsection{Filtragem Causal versus Fase Zero}
+\begin{figure}[H]
+\centering
+\includegraphics[width=\columnwidth]{causal_vs_fasezero_b9.pdf}
+\caption{Comparação entre a filtragem causal (tempo real) e a de fase zero
+(offline). Fase zero: Chebyshev~II de ordem~3, RMSE $0{,}3206$. Causal: filtro
+passa-baixas de ordem~1, RMSE $0{,}5630$. Ambas com $f_c = \SI{2700}{\hertz}$.}
+\label{fig:causal}
+\end{figure}
+
+Como todo o processamento é feito \emph{offline}, o resultado principal usa a
+filtragem de fase zero, que aplica o filtro nos sentidos direto e reverso e, com
+isso, cancela o atraso de fase. A Fig.~\ref{fig:causal} contrapõe essa escolha à
+filtragem causal, de sentido único, que seria a alternativa viável em tempo
+real. A melhor configuração de fase zero (Chebyshev~II de ordem~3) reconstrói a
+referência com RMSE de \num{0.3206}, ao passo que a melhor configuração causal,
+um filtro passa-baixas de ordem~1, fica em \num{0.5630}, quase o dobro do erro
+(nessa ordem as quatro aproximações praticamente coincidem).
+
+Essa diferença tem duas causas complementares. A primeira é o atraso de fase
+introduzido pela filtragem causal, que desloca a forma de onda no tempo e
+penaliza o RMSE, medido amostra a amostra. A segunda é a atenuação efetiva: ao
+percorrer o sinal duas vezes, a filtragem de fase zero dobra a atenuação na
+banda de rejeição e suprime melhor o ruído de medição. Fica evidente o
+compromisso entre as duas abordagens: a fase zero entrega maior fidelidade
+quando há acesso ao sinal completo, enquanto a causal seria a opção obrigatória
+em uma operação em tempo real, ao custo de maior erro e de um transitório mais
+longo após o chaveamento.
+
 \subsection{Funções de Transferência e Estabilidade}
 As duas melhores configurações de fase zero, ambas de ordem~3, possuem as funções
 de transferência discretas
@@ -85,13 +123,6 @@ H_{\text{Ch2}}(z) = \frac{0{,}0483 + 0{,}1141\,z^{-1} + 0{,}1141\,z^{-2} + 0{,}0
 \label{eq:hch2}
 \end{equation}
 
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.78\columnwidth]{polos_zeros_b9.pdf}
-\caption{Diagrama de polos e zeros do filtro Chebyshev~II de ordem~3.}
-\label{fig:polos}
-\end{figure}
-
 O filtro Butterworth tem polos em $0{,}447 \pm j0{,}487$ e $0{,}349$, com módulo
 máximo $|p|_{\max} = 0{,}661$; o Chebyshev~II, em $0{,}475 \pm j0{,}482$ e
 $0{,}361$, com $|p|_{\max} = 0{,}677$. Como todos os polos têm módulo inferior à
@@ -101,6 +132,20 @@ interior do círculo unitário, enquanto um par de zeros se posiciona sobre o
 círculo ($-0{,}681 \pm j0{,}733$), criando os \emph{notches} de transmissão
 característicos dessa aproximação; os três zeros do Butterworth, em contraste,
 coincidem em $z = -1$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.78\columnwidth]{polos_zeros_b9.pdf}
+\caption{Diagrama de polos e zeros do filtro Chebyshev~II de ordem~3.}
+\label{fig:polos}
+\end{figure}
+
+Embora apresentadas na forma direta nas Eqs.~(\ref{eq:hbut}) e (\ref{eq:hch2}),
+essas funções são implementadas internamente como uma cascata de seções de
+segunda ordem, conforme discutido na Seção~\ref{sec:fund}. Para a ordem~3 a
+diferença numérica entre as duas realizações é pequena, mas manter a estrutura
+em SOS preserva o condicionamento numérico e a estabilidade caso a mesma rotina
+seja reaproveitada em ordens mais altas, sem alterar a resposta projetada.
 
 \subsection{Resposta em Frequência e Espectro}
 \begin{figure}[H]
@@ -124,7 +169,10 @@ preserva a planura na banda de passagem.
 
 A Fig.~\ref{fig:espectro} confirma, no domínio da frequência, a supressão das
 componentes de alta frequência e a preservação da fundamental e das harmônicas de
-baixa ordem.
+baixa ordem. Além disso, o patamar de ruído do sinal medido, aproximadamente
+plano na região de alta frequência, é atenuado em cerca de uma ordem de
+grandeza, de modo que o espectro filtrado se aproxima do de referência sem
+deformar os picos da fundamental e das harmônicas de ordem baixa.
 
 \subsection{Custo Computacional versus Ordem}
 \begin{figure}[H]

@@ -8,6 +8,44 @@ simulamos ordens e frequências de corte diferentes, de modo a gerar os
 gráficos de comparação. Em seguida, realizamos nossas análises e conclusões
 com base nos resultados obtidos.
 
-O código do projeto está disponível no repositório do GitHub, podendo ser
-acessado através do link: \url{https://github.com/Aruanzin/Filtro-IIR}.
+A função central de projeto e aplicação do filtro IIR, aplicável a um sinal de
+qualquer tamanho, é reproduzida a seguir:
+
+\begin{lstlisting}[basicstyle=\ttfamily\scriptsize]
+import numpy as np
+from scipy import signal
+
+def projetar_sos(tipo, ordem, Wn, rp=0.5, rs=40.0):
+    # Filtro IIR passa-baixas -> Secoes de Segunda
+    # Ordem (SOS), estaveis p/ ordens elevadas.
+    if tipo == 'butter':
+        return signal.butter(
+            ordem, Wn, btype='low', output='sos')
+    if tipo == 'cheby1':
+        return signal.cheby1(
+            ordem, rp, Wn, btype='low', output='sos')
+    if tipo == 'cheby2':
+        return signal.cheby2(
+            ordem, rs, Wn, btype='low', output='sos')
+    if tipo == 'ellip':
+        return signal.ellip(
+            ordem, rp, rs, Wn,
+            btype='low', output='sos')
+    raise ValueError("Tipo invalido: " + tipo)
+
+def aplicar_filtro_iir(sinal_ruido, fs, f_corte,
+                       ordem, tipo='butter',
+                       rp=0.5, rs=40.0,
+                       fase_zero=True):
+    # fase_zero=True  -> sosfiltfilt (fase zero)
+    # fase_zero=False -> sosfilt     (causal)
+    Wn = f_corte / (0.5 * fs)  # normaliza p/ Nyquist
+    sos = projetar_sos(tipo, ordem, Wn, rp, rs)
+    if fase_zero:
+        return signal.sosfiltfilt(sos, sinal_ruido), sos
+    return signal.sosfilt(sos, sinal_ruido), sos
+\end{lstlisting}
+
+O código completo do projeto está disponível no repositório do GitHub, podendo
+ser acessado através do link: \url{https://github.com/Aruanzin/Filtro-IIR}.
 O repositório possui um README com instruções de como executar o código.
